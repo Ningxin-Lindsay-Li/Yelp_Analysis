@@ -14,7 +14,12 @@ library(ggplot2)
 ```
 
 ## read data ##
-```{r}
+
+```
+yelp_business_data <- jsonlite::stream_in(file("data/yelp_academic_dataset_business.json"))
+```
+
+```{r include = FALSE}
 yelp_business_data <- jsonlite::stream_in(file("data/yelp_academic_dataset_business.json"))
 ```
 
@@ -23,6 +28,13 @@ yelp_business_data <- jsonlite::stream_in(file("data/yelp_academic_dataset_busin
 Extracted the time table and put it back to the original dataset.
 Transformed all the character columns into factors except categories column.
 Extracted the attributes table as a new dataset, and deleted the attributes table and opening hours table.
+
+```
+yelp_business_data$Monday <- yelp_business_data$hours$Monday...
+yelp_business_data$city <- factor(yelp_business_data$city)...
+yelp_business_attribute <- yelp_business_data[,12]
+yelp_business_data <- yelp_business_data[,c(-12,-14)]
+```
 
 ```{r}
 yelp_business_data$Monday <- yelp_business_data$hours$Monday
@@ -44,6 +56,12 @@ yelp_business_data <- yelp_business_data[,c(-12,-14)]
 Extracted time information from character.
 Changed the opening hours of one column to two separate columns in order to capture the data more easily.
 
+```
+yelp_business_data$monday1 <- str_extract(yelp_business_data$Monday,'^[0-9]+:[0-9]+')
+yelp_business_data$monday2 <- str_extract(yelp_business_data$Monday,'[0-9]+:[0-9]+$')...
+yelp_business_data <- yelp_business_data[,-c(13:19)]
+```
+
 ```{r}
 yelp_business_data$monday1 <- str_extract(yelp_business_data$Monday,'^[0-9]+:[0-9]+')
 yelp_business_data$monday2 <- str_extract(yelp_business_data$Monday,'[0-9]+:[0-9]+$')
@@ -64,6 +82,11 @@ yelp_business_data <- yelp_business_data[,-c(13:19)]
 
 Transformed the character into date type. 
 
+```
+yelp_business_data$monday1 <- strptime(yelp_business_data$monday1,'%H:%M')...
+yelp_business_data$categories <- tolower(yelp_business_data$categories)
+
+```
 ```{r}
 yelp_business_data$monday1 <- strptime(yelp_business_data$monday1,'%H:%M')
 yelp_business_data$monday2 <- strptime(yelp_business_data$monday2,'%H:%M')
@@ -89,14 +112,28 @@ yelp_business_data1 <- yelp_business_data
 
 ## Deal with categories ##
 
-filtered the dataset by applying if there is a 'restaurant' in the categories.
+Filtered the dataset by applying if there is a 'restaurant' in the categories.
 Deleted some rows with 'restaurant', but not what we want.
+
+```
+cate <- strsplit(yelp_business_data$categories,',')
+match = 'restaurants'
+boolean1 <- grepl(match,cate)
+yelp_restaurant <- yelp_business_data[boolean1,]
+```
 
 ```{r}
 cate <- strsplit(yelp_business_data$categories,',')
 match = 'restaurants'
 boolean1 <- grepl(match,cate)
 yelp_restaurant <- yelp_business_data[boolean1,]
+```
+
+```
+cate <- strsplit(yelp_restaurant$categories,',')
+match2 = 'shopping'
+boolean2 <- grepl(match2,cate)
+yelp_restaurant <- yelp_restaurant[!boolean2,]
 ```
 
 ```{r}
@@ -122,6 +159,12 @@ boolean6 <- grepl(match6,cate)
 yelp_restaurant <- yelp_restaurant[!boolean6,]
 ```
 
+```
+yelp_restaurant <- subset(yelp_restaurant,!is.na(yelp_restaurant$business_id))
+yelp_restaurant$categories <- gsub('restaurants[,]*','',yelp_restaurant$categories)
+yelp_restaurant$categories <- gsub('food[,]*','',yelp_restaurant$categories)
+```
+
 ```{r}
 yelp_restaurant <- subset(yelp_restaurant,!is.na(yelp_restaurant$business_id))
 yelp_restaurant$categories <- gsub('restaurants[,]*','',yelp_restaurant$categories)
@@ -138,6 +181,11 @@ yelp_restaurant1 <- yelp_restaurant
 ```
 
 Extracted words from categories.
+
+```
+cate <- strsplit(yelp_restaurant$categories,',|&|[)]|[(]|[ ]|/')
+yelp_restaurant1$categories <- substr(cate,2,1000)
+```
 
 ```{r }
 cate <- strsplit(yelp_restaurant$categories,',|&|[)]|[(]|[ ]|/')
@@ -156,6 +204,17 @@ library(tm)
 ```
 
 Word cloud of cleaned categories.
+
+```
+text<-yelp_restaurant1$categories
+mixseg<-worker("mix") 
+a<-segment(text,mixseg)
+stopwords <- read.table("stopwords.txt")
+stopwords <- as.vector(stopwords[,1]) 
+wordResult <- removeWords(a,stopwords)
+freq<-table(wordResult)
+wordcloud2(freq,size=5)
+```
 
 ```{r}
 text<-yelp_restaurant1$categories
@@ -178,6 +237,11 @@ wordcloud2(freq,size=5)
 ```
 
 Deeper cleaning and merging of categories.
+
+```
+yelp_restaurant1$categories <- gsub('"veggies"|"vegetarian"','"vegan"',yelp_restaurant1$categories)...
+yelp_restaurant1$categories <- gsub('[(]|["]|[)]|[,]','',yelp_restaurant1$categories)
+```
 
 ```{r}
 yelp_restaurant1$categories <- gsub('"veggies"|"vegetarian"','"vegan"',yelp_restaurant1$categories)
@@ -203,12 +267,28 @@ yelp_restaurant1$categories <- gsub('[(]|["]|[)]|[,]','',yelp_restaurant1$catego
 
 Extracted unique word for each row.
 
+```
+cate <- strsplit(yelp_restaurant1$categories,' ')
+for (i in 1:nrow(yelp_restaurant1)) {yelp_restaurant1$categories[i] <- str_c(unique(cate[[i]]),collapse=' ')}
+```
+
 ```{r}
 cate <- strsplit(yelp_restaurant1$categories,' ')
 for (i in 1:nrow(yelp_restaurant1)) {yelp_restaurant1$categories[i] <- str_c(unique(cate[[i]]),collapse=' ')}
 ```
 
 Word cloud about cuisine.
+
+```
+text1<-yelp_restaurant1$categories
+mixseg1<-worker("mix") 
+b<-segment(text1,mixseg1) 
+wordResult1 <- removeWords(b,stopwords)
+new_list <- c('acai','alcohol','barbeque','breakfast','brunch','buffets','delivery','desserts','dinner','drinks','flourfood','fruits','imported','local','organic','salad','vegan','meat','kosher')
+wordDraw <- removeWords(wordResult1,new_list)
+freq1<-table(wordDraw)
+wordcloud2(freq1,size=12)
+```
 
 ```{r}
 text1<-yelp_restaurant1$categories
@@ -235,6 +315,13 @@ freq1
 
 Delete rows without these categories.
 
+```
+wordResult1 = wordResult1[wordResult1 != '']
+exist_cate <- str_c(wordResult1,collapse='|')
+boolean_cate <- str_detect(yelp_restaurant1$categories,exist_cate)
+yelp_restaurant1 <- yelp_restaurant1[boolean_cate,]
+```
+
 ```{r}
 wordResult1 = wordResult1[wordResult1 != '']
 exist_cate <- str_c(wordResult1,collapse='|')
@@ -243,6 +330,15 @@ yelp_restaurant1 <- yelp_restaurant1[boolean_cate,]
 ```
 
 Added a new column for cuisine countries.
+
+```
+k <- names(freq1)
+country <- str_c(k[-1],collapse='|')
+yelp_restaurant1$country <- str_match_all(yelp_restaurant1$categories,country)
+yelp_restaurant1$country <- gsub('c[(]+|[)]+|["]','',yelp_restaurant1$country)
+yelp_restaurant1$country <- gsub('[", "]',' ',yelp_restaurant1$country)
+yelp_restaurant1$country[yelp_restaurant1$country == 'character(0'] = NA
+```
 
 ```{r}
 k <- names(freq1)
@@ -262,6 +358,10 @@ yelp_restaurant1$country[yelp_restaurant1$country == 'character(0'] = NA
 ```
 
 Added new columns for categories.
+
+```
+yelp_restaurant1$acai <- ifelse(str_detect(yelp_restaurant1$categories,"acai"),1,0)...
+```
 
 ```{r}
 yelp_restaurant1$acai <- ifelse(str_detect(yelp_restaurant1$categories,"acai"),1,0)
@@ -289,11 +389,22 @@ yelp_restaurant1$kosher <- ifelse(str_detect(yelp_restaurant1$categories,"kosher
 #for (i in new_list) { yelp_restaurant1 <- data.frame(append(yelp_restaurant1,str_detect(yelp_restaurant1$categories,i) )) }
 ```
 
+```
+yelp_restaurant1 <- yelp_restaurant1[,-grep('categories',colnames(yelp_restaurant1))]
+```
+
 ```{r}
 yelp_restaurant1 <- yelp_restaurant1[,-grep('categories',colnames(yelp_restaurant1))]
 ```
 
 ## Output cleaned data ##
+
+```
+write.csv(x = yelp_restaurant1,file = "yelp_cleaned_data.csv")
+```
+```
+write.csv(x = yelp_business_attribute,file = "yelp_attribute_data.csv")
+```
 
 ```{r}
 write.csv(x = yelp_restaurant1,file = "yelp_cleaned_data.csv")
