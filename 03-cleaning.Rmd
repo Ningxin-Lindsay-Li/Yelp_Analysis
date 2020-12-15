@@ -1,1 +1,322 @@
 # Data transformation
+
+
+```{r setup, include=FALSE}
+ # keep this chunk in your .Rmd file
+ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+```{r echo=FALSE}
+library(dplyr)
+library(jsonlite)
+library(stringr)
+library(ggplot2)
+```
+
+## read data ##
+```{r}
+yelp_business_data <- jsonlite::stream_in(file("data/yelp_academic_dataset_business.json"))
+```
+
+## change formats ##
+
+Extracted the time table and put it back to the original dataset.
+Transformed all the character columns into factors except categories column.
+Extracted the attributes table as a new dataset, and deleted the attributes table and opening hours table.
+
+```{r}
+yelp_business_data$Monday <- yelp_business_data$hours$Monday
+yelp_business_data$Tuesday <- yelp_business_data$hours$Tuesday
+yelp_business_data$Wednesday <- yelp_business_data$hours$Wednesday
+yelp_business_data$Thursday <- yelp_business_data$hours$Thursday
+yelp_business_data$Friday <- yelp_business_data$hours$Friday
+yelp_business_data$Saturday <- yelp_business_data$hours$Saturday
+yelp_business_data$Sunday <- yelp_business_data$hours$Sunday
+yelp_business_data$city <- factor(yelp_business_data$city)
+yelp_business_data$state <- factor(yelp_business_data$state)
+yelp_business_data$postal_code <- factor(yelp_business_data$postal_code)
+yelp_business_data$is_open <- factor(yelp_business_data$is_open)
+yelp_business_attribute <- yelp_business_data[,12]
+yelp_business_data <- yelp_business_data[,c(-12,-14)]
+#yelp_business_data$categories <- factor(yelp_business_data$categories)
+```
+
+Extracted time information from character.
+Changed the opening hours of one column to two separate columns in order to capture the data more easily.
+
+```{r}
+yelp_business_data$monday1 <- str_extract(yelp_business_data$Monday,'^[0-9]+:[0-9]+')
+yelp_business_data$monday2 <- str_extract(yelp_business_data$Monday,'[0-9]+:[0-9]+$')
+yelp_business_data$tuesday1 <- str_extract(yelp_business_data$Tuesday,'^[0-9]+:[0-9]+')
+yelp_business_data$tuesday2 <- str_extract(yelp_business_data$Tuesday,'[0-9]+:[0-9]+$')
+yelp_business_data$wednesday1 <- str_extract(yelp_business_data$Wednesday,'^[0-9]+:[0-9]+')
+yelp_business_data$wednesday2 <- str_extract(yelp_business_data$Wednesday,'[0-9]+:[0-9]+$')
+yelp_business_data$thursday1 <- str_extract(yelp_business_data$Thursday,'^[0-9]+:[0-9]+')
+yelp_business_data$thursday2 <- str_extract(yelp_business_data$Thursday,'[0-9]+:[0-9]+$')
+yelp_business_data$friday1 <- str_extract(yelp_business_data$Friday,'^[0-9]+:[0-9]+')
+yelp_business_data$friday2 <- str_extract(yelp_business_data$Friday,'[0-9]+:[0-9]+$')
+yelp_business_data$saturday1 <- str_extract(yelp_business_data$Saturday,'^[0-9]+:[0-9]+')
+yelp_business_data$saturday2 <- str_extract(yelp_business_data$Saturday,'[0-9]+:[0-9]+$')
+yelp_business_data$sunday1 <- str_extract(yelp_business_data$Sunday,'^[0-9]+:[0-9]+')
+yelp_business_data$sunday2 <- str_extract(yelp_business_data$Sunday,'[0-9]+:[0-9]+$')
+yelp_business_data <- yelp_business_data[,-c(13:19)]
+```
+
+Transformed the character into date type. 
+
+```{r}
+yelp_business_data$monday1 <- strptime(yelp_business_data$monday1,'%H:%M')
+yelp_business_data$monday2 <- strptime(yelp_business_data$monday2,'%H:%M')
+yelp_business_data$tuesday1 <- strptime(yelp_business_data$tuesday1,'%H:%M')
+yelp_business_data$tuesday2 <- strptime(yelp_business_data$tuesday2,'%H:%M')
+yelp_business_data$wednesday1 <- strptime(yelp_business_data$wednesday1,'%H:%M')
+yelp_business_data$wednesday2 <- strptime(yelp_business_data$wednesday2,'%H:%M')
+yelp_business_data$thursday1 <- strptime(yelp_business_data$thursday1,'%H:%M')
+yelp_business_data$thursday2 <- strptime(yelp_business_data$thursday2,'%H:%M')
+yelp_business_data$friday1 <- strptime(yelp_business_data$friday1,'%H:%M')
+yelp_business_data$friday2 <- strptime(yelp_business_data$friday2,'%H:%M')
+yelp_business_data$saturday1 <- strptime(yelp_business_data$saturday1,'%H:%M')
+yelp_business_data$saturday2 <- strptime(yelp_business_data$saturday2,'%H:%M')
+yelp_business_data$sunday1 <- strptime(yelp_business_data$sunday1,'%H:%M')
+yelp_business_data$sunday2 <- strptime(yelp_business_data$sunday2,'%H:%M')
+yelp_business_data$categories <- tolower(yelp_business_data$categories)
+```
+
+```{r echo = FALSE}
+#backup
+yelp_business_data1 <- yelp_business_data
+```
+
+## Deal with categories ##
+
+filtered the dataset by applying if there is a 'restaurant' in the categories.
+Deleted some rows with 'restaurant', but not what we want.
+
+```{r}
+cate <- strsplit(yelp_business_data$categories,',')
+match = 'restaurants'
+boolean1 <- grepl(match,cate)
+yelp_restaurant <- yelp_business_data[boolean1,]
+```
+
+```{r}
+cate <- strsplit(yelp_restaurant$categories,',')
+match2 = 'shopping'
+boolean2 <- grepl(match2,cate)
+yelp_restaurant <- yelp_restaurant[!boolean2,]
+cate <- strsplit(yelp_restaurant$categories,',')
+match3 = 'arts'
+boolean3 <- grepl(match3,cate)
+yelp_restaurant <- yelp_restaurant[!boolean3,]
+cate <- strsplit(yelp_restaurant$categories,',')
+match4 = 'home'
+boolean4 <- grepl(match4,cate)
+yelp_restaurant <- yelp_restaurant[!boolean4,]
+cate <- strsplit(yelp_restaurant$categories,',')
+match5 = 'repair'
+boolean5 <- grepl(match5,cate)
+yelp_restaurant <- yelp_restaurant[!boolean5,]
+cate <- strsplit(yelp_restaurant$categories,',')
+match6 = 'beauty'
+boolean6 <- grepl(match6,cate)
+yelp_restaurant <- yelp_restaurant[!boolean6,]
+```
+
+```{r}
+yelp_restaurant <- subset(yelp_restaurant,!is.na(yelp_restaurant$business_id))
+yelp_restaurant$categories <- gsub('restaurants[,]*','',yelp_restaurant$categories)
+yelp_restaurant$categories <- gsub('food[,]*','',yelp_restaurant$categories)
+```
+
+```{r echo = FALSE}
+#backup
+yelp_restaurant1 <- yelp_restaurant
+```
+
+```{r echo = FALSE}
+#summary(yelp_business_data$categories)
+```
+
+Extracted words from categories.
+
+```{r }
+cate <- strsplit(yelp_restaurant$categories,',|&|[)]|[(]|[ ]|/')
+yelp_restaurant1$categories <- substr(cate,2,1000)
+```
+
+```{r echo = FALSE}
+#install.packages('jiebaR')
+#install.packages('jiebaRD')
+#install.packages('wordcloud2')
+#install.packages('tm')
+library(jiebaR)
+library(jiebaRD)
+library(wordcloud2)
+library(tm)
+```
+
+Word cloud of cleaned categories.
+
+```{r}
+text<-yelp_restaurant1$categories
+```
+
+```{r}
+mixseg<-worker("mix") 
+a<-segment(text,mixseg) 
+```
+
+```{r}
+stopwords <- read.table("stopwords.txt")
+stopwords <- as.vector(stopwords[,1]) 
+wordResult <- removeWords(a,stopwords)
+```
+
+```{r}
+freq<-table(wordResult)
+wordcloud2(freq,size=5)
+```
+
+Deeper cleaning and merging of categories.
+
+```{r}
+yelp_restaurant1$categories <- gsub('"veggies"|"vegetarian"','"vegan"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"middle"','"middleeastern"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"coffeeshops"|"cafes"|"coffee"|"beverage"|"cafeteria"|"cideries"|"juice"|"kombucha"|"tea"|"cafems"|"smoothies"|"cafe"|"soup"|"yogurt"','"drinks"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"beer"|"cocktail"|"champagne"|"wine"|"whiskey"|"distilleries"|"breweries"|"pubs"|"brewpubs"|"gastropub"|"gastropubs"|"pub"|"bars"|"izakaya"|"bar"|"brasseries"|"bistros"|"speakeasies"','"alcohol"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"churros"|"catalan"|"empanadas"','"spainish"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"pancakes"|"cakes"|"cake"|"candy"|"cupcakes"|"cream"|"creperies"|"popcorn"|"sugar"|"waffles"|"cheesescafeks"|"chocolatiers"|"donuts"|"chocolatiers"|"macarons"|"offdessertss"|"offdesserts"|"practdesserts"|"servdessertss"|"servdesserts"|"spdessertss"|"ice"','"desserts"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"bulgarian"|"eritrean"|"guamanian"|"iberian"|"mauritius"|"nicaraguan"|"polynesian"|"slovakian"|"scottish"|"tuscan"|"uzbek"|"trinidadian"|"calabrian"|"senegalese"|"sicilian"|"swiss"','"othercountries"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"rotisserie"|"donairs"|"kebab"|"roasteries"|"steakhouses"|"cheesesteaks"|"fish"|"chicken"|"poke"','"meat"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"bagels"|"bakeries"|"dumplings"|"pasta"|"ramen"|"noodles"|"udon"|"patisserie"','"flourfood"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"pretzels"','"german"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"rican"','"puerto"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"spainish"|"tapas"','"spanish"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"sushi"|"tempura"|"teppanyaki"','"japanese"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"burgers"|"chips"|"falafel"|"pizza"|"delicatessen"|"delis"|"pita"|"junk"','"fast"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"bowls"|"sandwiches"','"salad"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"fondue"|"pot"|"szechuan"|"dim"|"cantonese"|"taiwanese"','"chinese"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"tacos"','"mexican"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('"poutineries"','"french"',yelp_restaurant1$categories)
+yelp_restaurant1$categories <- gsub('[(]|["]|[)]|[,]','',yelp_restaurant1$categories)
+```
+
+Extracted unique word for each row.
+
+```{r}
+cate <- strsplit(yelp_restaurant1$categories,' ')
+for (i in 1:nrow(yelp_restaurant1)) {yelp_restaurant1$categories[i] <- str_c(unique(cate[[i]]),collapse=' ')}
+```
+
+Word cloud about cuisine.
+
+```{r}
+text1<-yelp_restaurant1$categories
+mixseg1<-worker("mix") 
+b<-segment(text1,mixseg1) 
+```
+
+```{r}
+wordResult1 <- removeWords(b,stopwords)
+new_list <- c('acai','alcohol','barbeque','breakfast','brunch','buffets','delivery','desserts','dinner','drinks','flourfood','fruits','imported','local','organic','salad','vegan','meat','kosher')
+wordDraw <- removeWords(wordResult1,new_list)
+```
+
+```{r}
+freq1<-table(wordDraw)
+wordcloud2(freq1,size=12)
+```
+
+Cuisine countries.
+
+```{r}
+freq1
+```
+
+Delete rows without these categories.
+
+```{r}
+wordResult1 = wordResult1[wordResult1 != '']
+exist_cate <- str_c(wordResult1,collapse='|')
+boolean_cate <- str_detect(yelp_restaurant1$categories,exist_cate)
+yelp_restaurant1 <- yelp_restaurant1[boolean_cate,]
+```
+
+Added a new column for cuisine countries.
+
+```{r}
+k <- names(freq1)
+country <- str_c(k[-1],collapse='|')
+yelp_restaurant1$country <- str_match_all(yelp_restaurant1$categories,country)
+yelp_restaurant1$country <- gsub('c[(]+|[)]+|["]','',yelp_restaurant1$country)
+yelp_restaurant1$country <- gsub('[", "]',' ',yelp_restaurant1$country)
+```
+
+```{r}
+yelp_restaurant1$country[yelp_restaurant1$country == 'character(0'] = NA
+```
+
+
+```{r echo = FALSE}
+#category <- str_c(new_list,collapse='|')
+```
+
+Added new columns for categories.
+
+```{r}
+yelp_restaurant1$acai <- ifelse(str_detect(yelp_restaurant1$categories,"acai"),1,0)
+yelp_restaurant1$alcohol <- ifelse(str_detect(yelp_restaurant1$categories,"alcohol"),1,0)
+yelp_restaurant1$barbeque <- ifelse(str_detect(yelp_restaurant1$categories,"barbeque"),1,0)
+yelp_restaurant1$breakfast <- ifelse(str_detect(yelp_restaurant1$categories,"breakfast"),1,0)
+yelp_restaurant1$brunch <- ifelse(str_detect(yelp_restaurant1$categories,"brunch"),1,0)
+yelp_restaurant1$buffets <- ifelse(str_detect(yelp_restaurant1$categories,"buffets"),1,0)
+yelp_restaurant1$delivery <- ifelse(str_detect(yelp_restaurant1$categories,"delivery"),1,0)
+yelp_restaurant1$desserts <- ifelse(str_detect(yelp_restaurant1$categories,"desserts"),1,0)
+yelp_restaurant1$dinner <- ifelse(str_detect(yelp_restaurant1$categories,"dinner"),1,0)
+yelp_restaurant1$drinks <- ifelse(str_detect(yelp_restaurant1$categories,"drinks"),1,0)
+yelp_restaurant1$flourfood <- ifelse(str_detect(yelp_restaurant1$categories,"flourfood"),1,0)
+yelp_restaurant1$fruits <- ifelse(str_detect(yelp_restaurant1$categories,"fruits"),1,0)
+yelp_restaurant1$imported <- ifelse(str_detect(yelp_restaurant1$categories,"imported"),1,0)
+yelp_restaurant1$local <- ifelse(str_detect(yelp_restaurant1$categories,"local"),1,0)
+yelp_restaurant1$organic <- ifelse(str_detect(yelp_restaurant1$categories,"organic"),1,0)
+yelp_restaurant1$salad <- ifelse(str_detect(yelp_restaurant1$categories,"salad"),1,0)
+yelp_restaurant1$vegan <- ifelse(str_detect(yelp_restaurant1$categories,"vegan"),1,0)
+yelp_restaurant1$meat <- ifelse(str_detect(yelp_restaurant1$categories,"meat"),1,0)
+yelp_restaurant1$kosher <- ifelse(str_detect(yelp_restaurant1$categories,"kosher"),1,0)
+```
+
+```{r echo = FALSE}
+#for (i in new_list) { yelp_restaurant1 <- data.frame(append(yelp_restaurant1,str_detect(yelp_restaurant1$categories,i) )) }
+```
+
+```{r}
+yelp_restaurant1 <- yelp_restaurant1[,-grep('categories',colnames(yelp_restaurant1))]
+```
+
+## Output cleaned data ##
+
+```{r}
+write.csv(x = yelp_restaurant1,file = "yelp_cleaned_data.csv")
+```
+
+```{r}
+write.csv(x = yelp_business_attribute,file = "yelp_attribute_data.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
