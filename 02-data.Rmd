@@ -1,2 +1,30 @@
 # Data sources
 
+All four members in our team participated in the data collection process.
+
+We choose the data from Kaggle:
+https://www.kaggle.com/yelp-dataset/yelp-dataset
+And this is our original choice:
+https://www.yelp.com/dataset
+
+(The data We first downloaded from the yelp official website was due on Sep 2019, but another latest official dataset updated on kaggle was due on Feb 2020. After comparing these two datasets, we found that their sizes are the same, and columns are the same, so we thought the data from Kaggle was credible.)
+
+
+## Discription: ##
+
+- We mainly looked into open data sources that can be found online or in the R packages instead of collecting data manually by ourselves, because we hope to work on large datasets with many variables and oberservations which will enable us to gain more interesting insignts.
+- We explored datasets in R packages, and online resources such as Kaggle, NYC Open Data and some internet companies official data websites. Since those in R are relatively outdated and those on Kaggle do not have a reliable data source, we mainly focused on more recently published data, especially those released officially by internet companies.
+- We finally chose a set of datasets released on Yelp Open Dataset because the sources of the data are authoritative; the data contain many variables that can be explored; and they are in a relatively standard format.
+
+## Basic Information: ##
+
+- The set of datasets mainly contains three groups of data: information of businesses during COVID-19 period, demographic informations of businesses and other records such as reviews and tips. We can merge these datasets based on our interests.
+- Each dataset has millions of obervations and contains both categorical variables and numerical variables.
+- For example, the Yelp_covid dataset has more than 2,000,000 obervations and 9 variables. It provides information such as whether a business is temporarily closed or if it offers delivery or takeout services. The Yelp_business dataset has more than 2,000,000 obervations and 14 variables. It contains demographic variables such as locations and name as well as numerical variables such as bike parking spaces. The Yelp_tip dataset has 1,300,000 observations and 5 variables. It provides information such as user id, tip data and compliment numbers.
+
+## Problems: ##
+
+- The most salient problem of the dataset we have noticed at this point is that all datasets are too large. It will take R very long time to work on them so we may need to figure out a way to subset them without loosing too many information.
+- The other problem is that we wanted to look into changed on businesses before and after nCOVID-19. But since the Yelp_covid is a separate data and its promary key (business id) does not fully match with the other datasets, we may loose a lot of records while merging them together. So we may need to work on some more general aspects such as the over all proportions instead of summarizing by each business record.
+- Additionally, some variable in the datasets need to be standardized. For example, the ‘text’ variable in the Yelp_tip dataset consists of comment sentences. We may need to think of a way to categorized them into positive or negative reviews.
+- Finally, there are many missing variables in the dataset. Some columns have too many missing values that the entire column need to be deleted.
