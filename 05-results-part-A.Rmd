@@ -1,0 +1,269 @@
+# Results
+
+In this section, we will detail our analysis to the questions of interest mentioned in the introduction and gain preliminary insights through exploratory data analysis and visualization. We have divided it into four subsections that aim to answer the questions through a variety of different visualization.
+
+Spatial Data Analysis
+Demand and Price Analysis
+User Review (Textual Data) Mining
+Other Interesting Insights
+
+## Spatial Data Analysis ## 
+
+In this part, we will explore some basic variables from our dataset using spatial visualizations and will answer questions relating to density of restaurants, variations in opening or not, and cuisine. We will do all these detailed analysis based on a subset of data in Arizona.
+
+```{r}
+library(ggplot2)
+library(leaflet)
+library(dplyr)
+library(readr)
+library(stringr)
+library(rgdal)
+library(ggplot2)
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+yelp_restaurant_data <- read.csv("yelp_cleaned_data.csv")
+yelp_restaurant_data = yelp_restaurant_data[,-1]
+yelp_restaurant_data$city <- factor(yelp_restaurant_data$city)
+yelp_restaurant_data$state <- factor(yelp_restaurant_data$state)
+```
+
+### Whole Dataset ###
+Before we are going to show you some interesting findings, let's have a look at our whole data.
+
+```
+yelp_grouped <- yelp_restaurant_data %>% group_by(state) %>%
+  summarise(long=mean(longitude),lat=mean(latitude),n=n())
+
+leaflet(data = yelp_grouped)%>%
+  setView( lat=37, lng=-97 , zoom=4)%>%
+  addTiles() %>%
+  addCircleMarkers(~long, ~lat,label=~state,radius = ~n/600,stroke=FALSE,fillOpacity=0.5,
+                   popup = paste("State: ", yelp_grouped$state,
+```
+
+```{r warning=FALSE}
+yelp_grouped <- yelp_restaurant_data %>% group_by(state) %>%
+  summarise(long=mean(longitude),lat=mean(latitude),n=n())
+
+leaflet(data = yelp_grouped)%>%
+  setView( lat=37, lng=-97 , zoom=4)%>%
+  addTiles() %>%
+  addCircleMarkers(~long, ~lat,label=~state,radius = ~n/600,stroke=FALSE,fillOpacity=0.5,
+                   popup = paste("State: ", yelp_grouped$state,
+                                 "<br /> Number of samples:", yelp_grouped$n))
+```
+
+As we can see, Airbnb only provides data of several cities like Montreal and Waterloo in Canada, Pittsburgh, Charlotte, Urbana-Champaign, Phoenix, Las Vegas, Madison, Cleveland in U.S., so we will focus on a single area to do our analysis, and we decide to use Arizona which includes city Phoenix with biggest dataset.
+
+```
+library(rgdal)
+
+# group the data by zipcode:
+yelp_AZ_postal<- yelp_AZ %>% group_by(postal_code) %>% summarise(n=n())
+yelp_AZ_postal <- yelp_AZ_postal[c(-1,-2),]
+names(yelp_AZ_postal) <- c('GEOID10','n')
+
+# Read shapefile:
+my_zip <- readOGR( 
+  dsn= path.expand("Data/zip_shape") , 
+  layer="cb_2018_us_zcta510_500k",
+  verbose=FALSE
+)
+
+# Create a color palett for the map:
+my_zip@data <- left_join(my_zip@data,yelp_AZ_postal,by='GEOID10')
+mypalette <- colorNumeric( palette="viridis", domain=my_zip@data$n, na.color="transparent")
+mypalette(c(45,43))
+
+# choropleth map:
+m <- leaflet(my_zip) %>% 
+  addTiles()  %>% 
+  setView( lat=33.6, lng=-112 , zoom=9) %>%
+  addPolygons( fillColor = ~mypalette(n), stroke=FALSE, fillOpacity=0.5) %>%
+  addLegend("topright", pal = mypalette, values = my_zip@data$n, title = "quantity") 
+  
+m
+```
+
+```{r}
+yelp_AZ <- yelp_restaurant_data[yelp_restaurant_data$state=='AZ',]
+yelp_AZ_postal<- yelp_AZ %>% group_by(postal_code) %>% summarise(n=n())
+yelp_AZ_postal <- yelp_AZ_postal[c(-1,-2),]
+names(yelp_AZ_postal) <- c('GEOID10','n')
+
+my_zip <- readOGR( 
+  dsn= path.expand("Data/zip_shape") , 
+  layer="cb_2018_us_zcta510_500k",
+  verbose=FALSE
+)
+
+my_zip@data <- left_join(my_zip@data,yelp_AZ_postal,by='GEOID10')
+mypalette <- colorNumeric( palette="viridis", domain=my_zip@data$n, na.color="transparent")
+
+m <- leaflet(my_zip) %>% 
+  addTiles()  %>% 
+  setView( lat=33.6, lng=-112 , zoom=9) %>%
+  addPolygons( fillColor = ~mypalette(n), stroke=FALSE, fillOpacity=0.5) %>%
+  addLegend("topright", pal = mypalette, values = my_zip@data$n, title = "quantity") 
+
+m
+```
+
+This is a basic interactive plot with all the restaurants in Arizona grouped in zipcode clusters. You can zoom in and out to see the density distribution. You can further click on each restaurant to see details like Name, address, stars and is open or not. This visualization helps us to basicly understand how restaurants are distributed across zipcode zones. We can see from the map that maximum restaurants are clustered around Tempo, and Scottsdale, followed by some areas around Phoenix, and the area with fewer restaurants are a little bit far from Phoenix city.
+
+Now, because the epidemic is very serious, we really want to know if restaurants are still open. Here, we work with the is_open data within the dataset to see if there is any pattern about opening or not. In this interactive plot, you can click on the circles to see their basic informatin.
+
+```
+AZ_palette <- colorFactor(palette='RdYlBu', domain=yelp_AZ$is_open, levels = NULL, ordered = FALSE,
+            na.color = "#808080", alpha = FALSE, reverse = FALSE)
+
+leaflet(data = yelp_AZ)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE, fillColor = ~AZ_palette(is_open),
+                   popup = paste("Name: ",yelp_AZ$name,
+                                 "<br /> Address:" ,yelp_AZ$address,
+                                 '<br /> Stars: ',yelp_AZ$stars,
+                                 '<br /> Open: ',yelp_AZ$is_open)) %>%
+  addLegend("topright", pal = AZ_palette, values = yelp_AZ$is_open, title = "Is open")
+```
+
+```{r}
+AZ_palette <- colorFactor(palette='RdYlBu', domain=yelp_AZ$is_open, levels = NULL, ordered = FALSE,
+            na.color = "#808080", alpha = FALSE, reverse = FALSE)
+
+leaflet(data = yelp_AZ)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE, fillColor = ~AZ_palette(is_open),
+                   popup = paste("Name: ",yelp_AZ$name,
+                                 "<br /> Address:" ,yelp_AZ$address,
+                                 '<br /> Stars: ',yelp_AZ$stars,
+                                 '<br /> Open: ',yelp_AZ$is_open)) %>%
+  addLegend("topright", pal = AZ_palette, values = yelp_AZ$is_open, title = "Is open")
+```
+
+From the plot, it is easy find differences between open restaurants and closed restaurants. For example, there are more open restaurants than closed restaurants, and they are more widely distributed. Also, closed restaurants are mostly concentrated in the city or town centers. This makes sense, because these areas are more dangerous than other areas, thus people may tend to suspend business to protect themselves. And since there are more restaurants located there, the probability of being closed must be lager than in other areas.
+
+It is interesting to observe these patterns, and if you are living in Phoenix, you may have some deeper and personal findings from this graph. 
+
+What we are also interested in is how the ratings are related with geographic data. We all know that people can rate restaurants on Yelp, and if we want to find somewhere to eat, we must notice that score. The stars more or less influenced our decisions.
+
+```
+star_palette <- colorNumeric(palette="plasma", domain=yelp_AZ$stars, na.color="transparent")
+
+leaflet(data = yelp_AZ)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE,fillColor = ~star_palette(stars),
+                   popup = paste("Name: ",yelp_AZ$name,
+                                 "<br /> Address:" ,yelp_AZ$address,
+                                 '<br /> Stars: ',yelp_AZ$stars,
+                                 '<br /> Open: ',yelp_AZ$is_open)) %>%
+  addLegend("topright", pal = star_palette, values = yelp_AZ$stars, title = "Stars")
+```
+
+```{r}
+star_palette <- colorNumeric(palette="plasma", domain=yelp_AZ$stars, na.color="transparent")
+
+leaflet(data = yelp_AZ)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE,fillColor = ~star_palette(stars),
+                   popup = paste("Name: ",yelp_AZ$name,
+                                 "<br /> Address:" ,yelp_AZ$address,
+                                 '<br /> Stars: ',yelp_AZ$stars,
+                                 '<br /> Open: ',yelp_AZ$is_open)) %>%
+  addLegend("topright", pal = star_palette, values = yelp_AZ$stars, title = "Stars")
+```
+
+The graph shows that the centre of Phoenix, a small area in Tempo, Scottsdale, and the upright area in AZ have more stars. Glendale, and unexpectly, area between Phoenix and Tempo have least stars. Interestingly, if we zoom in the map, we will find that the restaurants with very few stars are all in an airport called 'Phoenix Sky Harbor International Airport'. (And now it seems make sense :)
+
+After we have seen the overall distribution, we may have question: Is the star distriburion related to the cuisine? We choose the top3 amount cuisines and let's have a look.
+
+```
+bool_american <- str_detect(yelp_AZ$country,'american')
+yelp_AZ_american <- yelp_AZ[bool_american,]
+yelp_AZ_american <- subset(yelp_AZ_american,!is.na(yelp_AZ_american$business_id))
+
+
+leaflet(data = yelp_AZ_american)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE,fillColor = ~star_palette(stars),
+                   popup = paste("Name: ",yelp_AZ_american$name,
+                                 "<br /> Address:" ,yelp_AZ_american$address,
+                                 '<br /> Stars: ',yelp_AZ_american$stars,
+                                 '<br /> Open: ',yelp_AZ_american$is_open)) %>%
+  addLegend("topright", pal = star_palette, values = yelp_AZ_american$stars, title = "Stars")
+```
+
+```{r}
+bool_american <- str_detect(yelp_AZ$country,'american')
+yelp_AZ_american <- yelp_AZ[bool_american,]
+yelp_AZ_american <- subset(yelp_AZ_american,!is.na(yelp_AZ_american$business_id))
+
+
+leaflet(data = yelp_AZ_american)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE,fillColor = ~star_palette(stars),
+                   popup = paste("Name: ",yelp_AZ_american$name,
+                                 "<br /> Address:" ,yelp_AZ_american$address,
+                                 '<br /> Stars: ',yelp_AZ_american$stars,
+                                 '<br /> Open: ',yelp_AZ_american$is_open)) %>%
+  addLegend("topright", pal = star_palette, values = yelp_AZ_american$stars, title = "Stars")
+```
+
+```{r}
+bool_mexican = str_detect(yelp_AZ$country,'mexican')
+yelp_AZ_mexican = yelp_AZ[bool_mexican,]
+yelp_AZ_mexican <- subset(yelp_AZ_mexican,!is.na(yelp_AZ_mexican$business_id))
+
+
+leaflet(data = yelp_AZ_mexican)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE,fillColor = ~star_palette(stars),
+                   popup = paste("Name: ",yelp_AZ_mexican$name,
+                                 "<br /> Address:" ,yelp_AZ_mexican$address,
+                                 '<br /> Stars: ',yelp_AZ_mexican$stars,
+                                 '<br /> Open: ',yelp_AZ_mexican$is_open)) %>%
+  addLegend("topright", pal = star_palette, values = yelp_AZ_mexican$stars, title = "Stars")
+```
+
+```{r}
+bool_chinese = str_detect(yelp_AZ$country,'chinese')
+yelp_AZ_chinese = yelp_AZ[bool_chinese,]
+yelp_AZ_chinese <- subset(yelp_AZ_chinese,!is.na(yelp_AZ_chinese$business_id))
+
+leaflet(data = yelp_AZ_chinese)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE,fillColor = ~star_palette(stars),
+                   popup = paste("Name: ",yelp_AZ_chinese$name,
+                                 "<br /> Address:" ,yelp_AZ_chinese$address,
+                                 '<br /> Stars: ',yelp_AZ_chinese$stars,
+                                 '<br /> Open: ',yelp_AZ_chinese$is_open)) %>%
+  addLegend("topright", pal = star_palette, values = yelp_AZ_chinese$stars, title = "Stars")
+```
+We found that different cuisines actually have similar score distributions. The star may be more related to location than cuisine. Let us look at the overall distribution of cuisine in AZ. Here we choose the top9 amount cuisines.
+
+```{r}
+yelp_country <- yelp_AZ[,c('name','address','stars','is_open','country','latitude','longitude')]
+country <- str_extract(yelp_AZ$country,'[a-z]+')
+yelp_country$country <- country
+country_filter <- str_detect(yelp_country$country,'american|mexican|chinese|italian|japanese|mediterranean|indian|thai|french|canadian')
+yelp_country <- yelp_country[country_filter,]
+yelp_country <- subset(yelp_country,!is.na(yelp_country$country))
+
+country_palette <- colorFactor(palette='Paired', domain=yelp_country$country, levels = NULL, ordered = FALSE,
+                          na.color = "#808080", alpha = FALSE, reverse = FALSE)
+
+leaflet(data = yelp_country)%>%
+  addTiles() %>%
+  addCircleMarkers(~longitude, ~latitude,label=~name,radius = 5,stroke=FALSE, fillColor = ~country_palette(country),
+                   popup = paste("Name: ",yelp_country$name,
+                                 "<br /> Address:" ,yelp_country$address,
+                                 '<br /> Stars: ',yelp_country$stars,
+                                 '<br /> Open: ',yelp_country$is_open)) %>%
+  addLegend("topright", pal = country_palette, values = yelp_country$country, title = "Cuisine")
+```
+
+This plot shows clearly that there are some clusters of mexican restaurants, american restaurants are located everywhere, chinese restaurants have a trend to the downright, while indian are mostly located on the top and downright.
+
