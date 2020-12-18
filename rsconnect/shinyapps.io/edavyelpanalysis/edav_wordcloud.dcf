@@ -1,0 +1,10 @@
+name: edav_wordcloud
+title: edav_wordcloud
+username:
+account: edavyelpanalysis
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 3413349
+bundleId: 4004233
+url: https://edavyelpanalysis.shinyapps.io/edav_wordcloud/
+when: 1608262745.69609

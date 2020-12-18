@@ -1,0 +1,14 @@
+introduction
+data-sources
+discription
+basic-information
+problems
+data-transformation
+read-data
+change-formats
+deal-with-categories
+output-cleaned-data
+missing-values
+results
+interactive-component
+conclusion
